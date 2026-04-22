@@ -43,6 +43,7 @@ jobs:
         username: ${{ secrets.HOST_NAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
+          aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 585008083177.dkr.ecr.us-west-2.amazonaws.com
           docker pull 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
           docker stop devsecops || true
           docker rm devsecops || true
