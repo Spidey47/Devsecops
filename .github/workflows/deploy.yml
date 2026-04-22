@@ -30,11 +30,11 @@ jobs:
 
     - name: Tag image
       run: |
-        docker tag devsecops-app:latest 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops-app:latest
+        docker tag devsecops-app:latest 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
 
     - name: Push to ECR
       run: |
-        docker push 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops-app:latest
+        docker push 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
 
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v0.1.6
@@ -43,7 +43,7 @@ jobs:
         username: ${{ secrets.HOST_NAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          docker pull 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops-app:latest
+          docker pull 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
           docker stop devsecops || true
           docker rm devsecops || true
-          docker run -d -p 8000:8000 --name devsecops 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops-app:latest
+          docker run -d -p 8000:8000 --name devsecops 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
