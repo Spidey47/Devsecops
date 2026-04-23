@@ -63,7 +63,10 @@ jobs:
 
       - name: ZAP Scan
         run: |
-          docker run --rm -t ghcr.io/zaproxy/zaproxy:stable \
+          docker run --rm -t \
+          --network="host" \
+          -v $(pwd):/zap/wrk \
+          ghcr.io/zaproxy/zaproxy:stable \
           zap-baseline.py \
           -t http://localhost:8000 \
           -r zap-report.html
