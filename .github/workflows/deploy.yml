@@ -52,7 +52,9 @@ jobs:
 
       - name: Scan Docker Image
         run: |
-          docker run --rm aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL devsecops-app
+          docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL devsecops-app
 
       - name: Run container for ZAP scan
         run: |
