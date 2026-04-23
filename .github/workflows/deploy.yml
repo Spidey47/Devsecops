@@ -10,41 +10,89 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.ACCESS_KEY }}
-        aws-secret-access-key: ${{ secrets.SECRET_ACCESS_KEY }}
-        aws-region: us-west-2
+      - name: Secret Scan
+        uses: gitleaks/gitleaks-action@v2
 
-    - name: Login to ECR
-      run: |
-        aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 585008083177.dkr.ecr.us-west-2.amazonaws.com
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
 
-    - name: Build Docker image
-      run: |
-        docker build -t devsecops-app .
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
 
-    - name: Tag image
-      run: |
-        docker tag devsecops-app:latest 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
+      - name: Run Bandit
+        run: |
+          pip install bandit
+          bandit -r . -ll
 
-    - name: Push to ECR
-      run: |
-        docker push 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
+      - name: Dependency Scan
+        run: |
+          pip install safety
+          safety check
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.HOST_NAME }}
-        key: ${{ secrets.SSH_KEY }}
-        script: |
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Login to ECR
+        run: |
           aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 585008083177.dkr.ecr.us-west-2.amazonaws.com
-          docker pull 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
-          docker stop devsecops || true
-          docker rm devsecops || true
-          docker run -d -p 8000:8000 --name devsecops 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
+
+      - name: Build Docker image
+        run: |
+          docker build -t devsecops-app .
+
+      - name: Scan Docker Image
+        run: |
+          docker run --rm aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL devsecops-app
+
+      - name: Run container for ZAP scan
+        run: |
+          docker run -d -p 8000:8000 --name zap-test devsecops-app
+          sleep 15
+
+      - name: ZAP Scan
+        run: |
+          docker run --rm -t owasp/zap2docker-stable zap-baseline.py \
+          -t http://localhost:8000 \
+          -r zap-report.html
+
+      - name: Stop test container
+        run: |
+          docker stop zap-test
+          docker rm zap-test
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: zap-report.html
+
+      - name: Tag image
+        run: |
+          docker tag devsecops-app:latest 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
+
+      - name: Push to ECR
+        run: |
+          docker push 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.HOST_NAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 585008083177.dkr.ecr.us-west-2.amazonaws.com
+            docker pull 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
+            docker stop devsecops || true
+            docker rm devsecops || true
+            docker run -d --restart always -p 8000:8000 --name devsecops 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
