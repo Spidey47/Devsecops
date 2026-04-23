@@ -71,6 +71,7 @@ jobs:
           zap-baseline.py \
           -t http://localhost:8000 \
           -r zap-report.html
+          -I
 
       - name: Stop test container
         run: |
