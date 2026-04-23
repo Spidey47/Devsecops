@@ -33,7 +33,7 @@ jobs:
       - name: Dependency Scan
         run: |
           pip install safety
-          safety scan
+          safety scan --full-report --keyless
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
