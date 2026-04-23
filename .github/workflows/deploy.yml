@@ -64,6 +64,7 @@ jobs:
       - name: ZAP Scan
         run: |
           docker run --rm -t \
+          -u root \
           --network="host" \
           -v $(pwd):/zap/wrk \
           ghcr.io/zaproxy/zaproxy:stable \
