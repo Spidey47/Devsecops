@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: devsecops-app
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: devsecops
+
+  template:
+    metadata:
+      labels:
+        app: devsecops
+
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+
+    spec:
+      containers:
+      - name: devsecops-container
+        image: 585008083177.dkr.ecr.us-west-2.amazonaws.com/devsecops:latest
+
+        ports:
+        - containerPort: 8000
